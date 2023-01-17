@@ -10,7 +10,7 @@ class Compiler:
         self.vm_file_path = vm_file_path
 
         if not asm_output_file_path:
-            self.asm_file_path = Path(str(vm_file_path).replace('.vm', '.asm'))
+            self.asm_file_path = Path(str(vm_file_path).replace(".vm", ".asm"))
         else:
             self.asm_file_path = asm_output_file_path
 
@@ -29,4 +29,3 @@ if __name__ == "__main__":
     file_path = Path(argv[1])
     compiler = Compiler(file_path)
     compiler.compile_and_write_asm()
-
