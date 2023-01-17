@@ -1,0 +1,16 @@
+[project]
+name = "vm_translator"
+description = "VM translator for the nand2tetris course"
+version = "0.1.0"
+authors = [
+    { name = "Adam Pajda", email = "adam_pajda@outlook.com" }
+]
+dependencies = [
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "black",
+    "flake8"
+]
