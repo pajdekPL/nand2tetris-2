@@ -15,6 +15,13 @@ CMDS_MAPPING = {
     "not": "C_ARITHMETIC",
     "push": "C_PUSH",
     "pop": "C_POP",
+    "label": "C_LABEL",
+    "goto": "C_GOTO",
+    "if-goto": "C_IF",
+    "function": "C_FUNCTION",
+    "return": "C_RETURN",
+    "call": "C_CALL",
+
 }
 
 
@@ -49,7 +56,7 @@ class Parser:
             for line in file:
                 cmd_line = self._remove_comments_and_spaces_from_line_and_return(
                     line
-                ).lower()
+                )
                 if cmd_line:
                     yield self._parse_cmd(cmd_line)
 
@@ -60,12 +67,17 @@ class Parser:
     @staticmethod
     def _parse_cmd(line) -> Command:
         cmd = line.split()[0]
-        if CMDS_MAPPING[cmd] == "C_ARITHMETIC":
+        c_cmd = CMDS_MAPPING.get(cmd)
+        if c_cmd == "C_ARITHMETIC":
             return Parser._parse_arithmetic_command(line)
-        if CMDS_MAPPING[cmd] == "C_PUSH":
+        if c_cmd == "C_PUSH":
             return Parser._parse_push_command(line)
-        if CMDS_MAPPING[cmd] == "C_POP":
+        if c_cmd == "C_POP":
             return Parser._parse_pop_command(line)
+        if c_cmd in {"C_LABEL", "C_GOTO", "C_IF"}:
+            return Parser._parse_one_arg_command(line)
+        if not c_cmd:
+            raise UnknownCommand(f"{cmd} can't be parsed")
 
     @staticmethod
     def _parse_arithmetic_command(line) -> Command:
@@ -92,3 +104,12 @@ class Parser:
                 r"\s{2,}", " ", line[: line.find(Parser.COMMENT_SIGN)].strip()
             )
         return re.sub(r"\s{2,}", " ", line.strip())
+
+    @staticmethod
+    def _parse_one_arg_command(line):
+        cmd_elements = line.split()
+        return Command(CMDS_MAPPING[cmd_elements[0]], cmd_elements[1])
+
+
+class UnknownCommand(Exception):
+    pass

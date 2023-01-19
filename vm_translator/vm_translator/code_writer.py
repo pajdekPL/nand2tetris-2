@@ -53,6 +53,12 @@ class CodeWriter:
             self.open_file.writelines(self._generate_c_push_cmd(cmd))
         elif cmd.cmd_type == "C_POP":
             self.open_file.writelines(self._generate_c_pop_cmd(cmd))
+        elif cmd.cmd_type == "C_LABEL":
+            self.open_file.writelines(self._generate_c_label_cmd(cmd))
+        elif cmd.cmd_type == "C_GOTO":
+            self.open_file.writelines(self._generate_c_goto_cmd(cmd))
+        elif cmd.cmd_type == "C_IF":
+            self.open_file.writelines(self._generate_c_if_cmd(cmd))
         else:
             self._raise_unrecognised_cmd(cmd)
 
@@ -63,26 +69,26 @@ class CodeWriter:
             f"// Compilation date: {datetime.today()}"
         )
 
-    def _generate_c_arithmetic_cmd(self, cmd):
+    def _generate_c_arithmetic_cmd(self, cmd: Command):
         c_arithmetic_function = self._c_arithmetic_cmd_mapping.get(cmd.arg_1)
         if not c_arithmetic_function:
             self._raise_unrecognised_cmd(cmd)
         return c_arithmetic_function()
 
-    def _generate_c_push_cmd(self, cmd):
+    def _generate_c_push_cmd(self, cmd: Command):
         c_push_function = self._c_push_cmd_mapping.get(cmd.arg_1)
         if not c_push_function:
             self._raise_unrecognised_cmd(cmd)
         return c_push_function(cmd)
 
-    def _generate_c_pop_cmd(self, cmd):
+    def _generate_c_pop_cmd(self, cmd: Command):
         c_pop_function = self._c_pop_cmd_mapping.get(cmd.arg_1)
         if not c_pop_function:
             self._raise_unrecognised_cmd(cmd)
         return c_pop_function(cmd)
 
     @staticmethod
-    def _raise_unrecognised_cmd(cmd):
+    def _raise_unrecognised_cmd(cmd: Command):
         raise UnrecognisedCmdError(
             f"{cmd} is not handled by the compiler, check your VM code"
         )
@@ -215,7 +221,7 @@ class CodeWriter:
         return "\n".join(command_lines)
 
     @staticmethod
-    def _generate_push_constant_cmd(cmd):
+    def _generate_push_constant_cmd(cmd: Command):
         command_lines = (
             f"\n//{cmd}",
             f"@{cmd.arg_2}",
@@ -229,7 +235,7 @@ class CodeWriter:
         return "\n".join(command_lines)
 
     @staticmethod
-    def _generate_pop_local_cmd(cmd):
+    def _generate_pop_local_cmd(cmd: Command):
         command_lines = (
             f"\n//{cmd}",
             f"@{cmd.arg_2}",
@@ -248,7 +254,7 @@ class CodeWriter:
         return "\n".join(command_lines)
 
     @staticmethod
-    def _generate_push_cmd_for_local_argument_this_that(cmd):
+    def _generate_push_cmd_for_local_argument_this_that(cmd: Command):
         pointer_mapping = {
             "local": "LCL",
             "argument": "ARG",
@@ -271,7 +277,7 @@ class CodeWriter:
         return "\n".join(command_lines)
 
     @staticmethod
-    def _generate_pop_cmd_for_local_argument_this_that(cmd):
+    def _generate_pop_cmd_for_local_argument_this_that(cmd: Command):
         pointer_mapping = {
             "local": "LCL",
             "argument": "ARG",
@@ -296,7 +302,7 @@ class CodeWriter:
         return "\n".join(command_lines)
 
     @staticmethod
-    def _generate_push_temp_cmd(cmd):
+    def _generate_push_temp_cmd(cmd: Command):
         temp_start = 5
         command_lines = (
             f"\n//{cmd}",
@@ -311,7 +317,7 @@ class CodeWriter:
         return "\n".join(command_lines)
 
     @staticmethod
-    def _generate_pop_temp_cmd(cmd):
+    def _generate_pop_temp_cmd(cmd: Command):
         temp_start = 5
         command_lines = (
             f"\n//{cmd}",
@@ -323,7 +329,7 @@ class CodeWriter:
         )
         return "\n".join(command_lines)
 
-    def _generate_push_static_cmd(self, cmd):
+    def _generate_push_static_cmd(self, cmd: Command):
         command_lines = (
             f"\n//{cmd}",
             f"@{self.file_name}.{cmd.arg_2}",
@@ -336,7 +342,7 @@ class CodeWriter:
         )
         return "\n".join(command_lines)
 
-    def _generate_pop_static_cmd(self, cmd):
+    def _generate_pop_static_cmd(self, cmd: Command):
         command_lines = (
             f"\n//{cmd}",
             "@SP",
@@ -348,7 +354,7 @@ class CodeWriter:
         return "\n".join(command_lines)
 
     @staticmethod
-    def _generate_push_pointer_cmd(cmd):
+    def _generate_push_pointer_cmd(cmd: Command):
         pointer_mapping = {
             0: "THIS",
             1: "THAT",
@@ -366,7 +372,7 @@ class CodeWriter:
         return "\n".join(command_lines)
 
     @staticmethod
-    def _generate_pop_pointer_cmd(cmd):
+    def _generate_pop_pointer_cmd(cmd: Command):
         pointer_mapping = {
             0: "THIS",
             1: "THAT",
@@ -379,6 +385,35 @@ class CodeWriter:
             f"@{pointer_mapping[cmd.arg_2]}",
             "M=D",
         )
+        return "\n".join(command_lines)
+
+    @staticmethod
+    def _generate_c_label_cmd(cmd: Command):
+        command_lines = [
+            f"\n//{cmd}",
+            f"({cmd.arg_1})"
+        ]
+        return "\n".join(command_lines)
+
+    @staticmethod
+    def _generate_c_goto_cmd(cmd: Command):
+        command_lines = [
+            f"\n//{cmd}",
+            f"@{cmd.arg_1}",
+            "0;JMP"
+        ]
+        return "\n".join(command_lines)
+
+    @staticmethod
+    def _generate_c_if_cmd(cmd: Command):
+        command_lines = [
+            f"\n//{cmd}",
+            "@SP",
+            "AM=M-1",
+            "D=M",
+            f"@{cmd.arg_1}",
+            "D;JNE"
+        ]
         return "\n".join(command_lines)
 
 

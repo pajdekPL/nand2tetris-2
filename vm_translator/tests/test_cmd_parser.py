@@ -128,3 +128,17 @@ def test_parser_usage_as_iterator():
 
             with pytest.raises(StopIteration):
                 next(parser)
+
+
+@pytest.mark.parametrize("vm_cmd, expected_parsed_cmd", [
+    ("label loop", Command("C_LABEL", "loop")),
+    ("goto someLoop", Command("C_GOTO", "someLoop")),
+    ("if-goto loop", Command("C_IF", "loop")),
+])
+def test_parser_with_branching_cmds(vm_cmd, expected_parsed_cmd):
+    with mock.patch("builtins.open", mock.mock_open(read_data=vm_cmd)):
+        parser = Parser(Path("mock/file"))
+        cmd = next(parser)
+        assert cmd.cmd_type == expected_parsed_cmd.cmd_type
+        assert cmd.arg_1 == expected_parsed_cmd.arg_1
+        assert cmd.arg_2 is None

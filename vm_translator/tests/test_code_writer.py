@@ -153,6 +153,31 @@ def test_code_writer_writes_pop_commands_properly(command, asm_expected_code):
         mocked_open().writelines.assert_called_with(asm_expected_code)
 
 
+@pytest.mark.parametrize(
+    "command, asm_expected_code",
+    [
+        (
+            Command("C_LABEL", "loop"),
+            "\n//Command(cmd_type='C_LABEL', arg_1='loop', arg_2=None)\n(loop)"
+        ),
+        (
+            Command("C_IF", "loopDoop"),
+            "\n//Command(cmd_type='C_IF', arg_1='loopDoop', arg_2=None)\n@SP\nAM=M-1\nD=M\n@loopDoop\nD;JNE",
+        ),
+        (
+                Command("C_GOTO", "loopX"),
+                "\n//Command(cmd_type='C_GOTO', arg_1='loopX', arg_2=None)\n@loopX\n0;JMP",
+        ),
+])
+def test_code_writer_writes_branching_commands_properly(command, asm_expected_code):
+    mock_file = Path("tmp_path/mocked.asm")
+    with patch("builtins.open") as mocked_open:
+        code_writer = CodeWriter(mock_file)
+        code_writer.write_cmd(command)
+
+        mocked_open().writelines.assert_called_with(asm_expected_code)
+
+
 def test_label_indexes_are_incremented_properly_for_gt_cmd():
     mock_file = Path("tmp_path/mocked.asm")
     expected_label_counter_init = {
