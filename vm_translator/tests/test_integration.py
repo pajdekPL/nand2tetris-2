@@ -5,16 +5,28 @@ import os
 from vm_translator.VMTranslator import Compiler
 import filecmp
 
-OUTPUT_FILE = Path("SimpleAddReference.asm")
+OUTPUT_FILE = Path("output_file.asm")
 resource_dir = Path(os.path.dirname(__file__)) / "resources/"
 
 
-@pytest.mark.parametrize("input_vm_file, reference_file", [
-    (resource_dir/"PointerTest.vm", resource_dir/"PointerTestReference.asm"),
-    (resource_dir/"SimpleAdd.vm", resource_dir/"SimpleAddReference.asm"),
-    (resource_dir/"FibonacciSeries.vm", resource_dir/"FibonacciSeriesReference.asm"),
-])
-def test_pointer_vm_file_is_properly_compiled(mockdata_time_and_remove_output_file, input_vm_file, reference_file):
+@pytest.mark.parametrize(
+    "input_vm_file, reference_file",
+    [
+        (resource_dir / "PointerTest.vm", resource_dir / "PointerTestReference.asm"),
+        (resource_dir / "SimpleAdd.vm", resource_dir / "SimpleAddReference.asm"),
+        (
+            resource_dir / "FibonacciSeries.vm",
+            resource_dir / "FibonacciSeriesReference.asm",
+        ),
+        (
+            resource_dir / "nested_call",
+            resource_dir / "nested_call/NestedCallReference.asm",
+        ),
+    ],
+)
+def test_pointer_vm_file_is_properly_compiled(
+    mockdata_time_and_remove_output_file, input_vm_file, reference_file
+):
     compiler = Compiler(input_vm_file, OUTPUT_FILE)
     compiler.compile_and_write_asm()
 

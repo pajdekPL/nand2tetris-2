@@ -21,14 +21,13 @@ CMDS_MAPPING = {
     "function": "C_FUNCTION",
     "return": "C_RETURN",
     "call": "C_CALL",
-
 }
 
 
 @dataclass
 class Command:
     cmd_type: str
-    arg_1: str
+    arg_1: str = None
     arg_2: int = None
 
 
@@ -54,9 +53,7 @@ class Parser:
     def _generator(self):
         with open(self.input_file) as file:
             for line in file:
-                cmd_line = self._remove_comments_and_spaces_from_line_and_return(
-                    line
-                )
+                cmd_line = self._remove_comments_and_spaces_from_line_and_return(line)
                 if cmd_line:
                     yield self._parse_cmd(cmd_line)
 
@@ -70,12 +67,12 @@ class Parser:
         c_cmd = CMDS_MAPPING.get(cmd)
         if c_cmd == "C_ARITHMETIC":
             return Parser._parse_arithmetic_command(line)
-        if c_cmd == "C_PUSH":
-            return Parser._parse_push_command(line)
-        if c_cmd == "C_POP":
-            return Parser._parse_pop_command(line)
+        if c_cmd in {"C_PUSH", "C_POP", "C_FUNCTION", "C_CALL"}:
+            return Parser._parse_two_arguments_cmd_command(line)
         if c_cmd in {"C_LABEL", "C_GOTO", "C_IF"}:
             return Parser._parse_one_arg_command(line)
+        if c_cmd == "C_RETURN":
+            return Parser._parse_return_command(line)
         if not c_cmd:
             raise UnknownCommand(f"{cmd} can't be parsed")
 
@@ -84,14 +81,7 @@ class Parser:
         return Command(CMDS_MAPPING[line], line)
 
     @staticmethod
-    def _parse_push_command(line) -> Command:
-        cmd_elements = line.split()
-        return Command(
-            CMDS_MAPPING[cmd_elements[0]], cmd_elements[1], int(cmd_elements[2])
-        )
-
-    @staticmethod
-    def _parse_pop_command(line) -> Command:
+    def _parse_two_arguments_cmd_command(line) -> Command:
         cmd_elements = line.split()
         return Command(
             CMDS_MAPPING[cmd_elements[0]], cmd_elements[1], int(cmd_elements[2])
@@ -109,6 +99,11 @@ class Parser:
     def _parse_one_arg_command(line):
         cmd_elements = line.split()
         return Command(CMDS_MAPPING[cmd_elements[0]], cmd_elements[1])
+
+    @staticmethod
+    def _parse_return_command(line):
+        cmd_elements = line.split()
+        return Command(CMDS_MAPPING[cmd_elements[0]])
 
 
 class UnknownCommand(Exception):

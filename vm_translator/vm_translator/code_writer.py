@@ -4,7 +4,7 @@ from vm_translator.parser import Command
 
 
 class CodeWriter:
-    def __init__(self, file_path: Path):
+    def __init__(self, file_path: Path, write_header=False):
         self.label_counter = {
             "gt": 0,
             "lt": 0,
@@ -12,8 +12,8 @@ class CodeWriter:
         }
         self.file_path = file_path
         self.open_file = None
-        self.module_name = file_path.name[: file_path.name.find(".")]
-        self._write_header_to_file()
+        self.file_name = file_path.name[: file_path.name.find(".")]
+        self._current_return_labels = {}
         self._c_arithmetic_cmd_mapping = {
             "add": self._generate_add_cmd,
             "sub": self._generate_sub_cmd,
@@ -44,6 +44,8 @@ class CodeWriter:
             "static": self._generate_pop_static_cmd,
             "pointer": self._generate_pop_pointer_cmd,
         }
+        if write_header:
+            self._write_header_to_file()
 
     def write_cmd(self, cmd: Command):
         self._open_file_to_write_if_not_opened()
@@ -59,15 +61,29 @@ class CodeWriter:
             self.open_file.writelines(self._generate_c_goto_cmd(cmd))
         elif cmd.cmd_type == "C_IF":
             self.open_file.writelines(self._generate_c_if_cmd(cmd))
+        elif cmd.cmd_type == "C_FUNCTION":
+            self.open_file.writelines(self._generate_c_function_cmd(cmd))
+        elif cmd.cmd_type == "C_RETURN":
+            self.open_file.writelines(self._generate_c_return_cmd(cmd))
+        elif cmd.cmd_type == "C_CALL":
+            self.open_file.writelines(self._generate_c_call_cmd(cmd))
         else:
             self._raise_unrecognised_cmd(cmd)
 
     def _write_header_to_file(self):
+        """
+        SP = 256
+        call Sys.init
+        :return:
+        """
+
         self._open_file_to_write_if_not_opened()
         self.open_file.writelines(
             f"// ASM FILE created by VMTranslator created by pajdek.\n"
-            f"// Compilation date: {datetime.today()}"
+            f"// Compilation date: {datetime.today()}\n"
         )
+        self.open_file.writelines("// set SP to 256\n" "@256\n" "D=A\n" "@SP\n" "M=D\n")
+        self.write_cmd(Command("C_CALL", "Sys.init", 0))
 
     def _generate_c_arithmetic_cmd(self, cmd: Command):
         c_arithmetic_function = self._c_arithmetic_cmd_mapping.get(cmd.arg_1)
@@ -223,7 +239,7 @@ class CodeWriter:
     @staticmethod
     def _generate_push_constant_cmd(cmd: Command):
         command_lines = (
-            f"\n//{cmd}",
+            f"\n// {cmd}",
             f"@{cmd.arg_2}",
             "D=A",
             "@SP",
@@ -237,7 +253,7 @@ class CodeWriter:
     @staticmethod
     def _generate_pop_local_cmd(cmd: Command):
         command_lines = (
-            f"\n//{cmd}",
+            f"\n// {cmd}",
             f"@{cmd.arg_2}",
             "D=A",
             "@LCL",
@@ -262,7 +278,7 @@ class CodeWriter:
             "that": "THAT",
         }
         command_lines = (
-            f"\n//{cmd}",
+            f"\n// {cmd}",
             f"@{cmd.arg_2}",
             "D=A",
             f"@{pointer_mapping[cmd.arg_1]}",
@@ -285,7 +301,7 @@ class CodeWriter:
             "that": "THAT",
         }
         command_lines = (
-            f"\n//{cmd}",
+            f"\n// {cmd}",
             f"@{cmd.arg_2}",
             "D=A",
             f"@{pointer_mapping[cmd.arg_1]}",
@@ -305,7 +321,7 @@ class CodeWriter:
     def _generate_push_temp_cmd(cmd: Command):
         temp_start = 5
         command_lines = (
-            f"\n//{cmd}",
+            f"\n// {cmd}",
             f"@{temp_start + cmd.arg_2}",
             "D=M",
             "@SP",
@@ -320,7 +336,7 @@ class CodeWriter:
     def _generate_pop_temp_cmd(cmd: Command):
         temp_start = 5
         command_lines = (
-            f"\n//{cmd}",
+            f"\n// {cmd}",
             "@SP",
             "AM=M-1",
             "D=M",
@@ -331,7 +347,7 @@ class CodeWriter:
 
     def _generate_push_static_cmd(self, cmd: Command):
         command_lines = (
-            f"\n//{cmd}",
+            f"\n// {cmd}",
             f"@{self.file_name}.{cmd.arg_2}",
             "D=M",
             "@SP",
@@ -344,7 +360,7 @@ class CodeWriter:
 
     def _generate_pop_static_cmd(self, cmd: Command):
         command_lines = (
-            f"\n//{cmd}",
+            f"\n// {cmd}",
             "@SP",
             "AM=M-1",
             "D=M",
@@ -360,7 +376,7 @@ class CodeWriter:
             1: "THAT",
         }
         command_lines = (
-            f"\n//{cmd}",
+            f"\n// {cmd}",
             f"@{pointer_mapping[cmd.arg_2]}",
             "D=M",
             "@SP",
@@ -378,7 +394,7 @@ class CodeWriter:
             1: "THAT",
         }
         command_lines = (
-            f"\n//{cmd}",
+            f"\n// {cmd}",
             "@SP",
             "AM=M-1",
             "D=M",
@@ -389,30 +405,205 @@ class CodeWriter:
 
     @staticmethod
     def _generate_c_label_cmd(cmd: Command):
-        command_lines = [
-            f"\n//{cmd}",
-            f"({cmd.arg_1})"
-        ]
+        command_lines = [f"\n// {cmd}", f"({cmd.arg_1})"]
         return "\n".join(command_lines)
 
     @staticmethod
     def _generate_c_goto_cmd(cmd: Command):
-        command_lines = [
-            f"\n//{cmd}",
-            f"@{cmd.arg_1}",
-            "0;JMP"
-        ]
+        command_lines = [f"\n// {cmd}", f"@{cmd.arg_1}", "0;JMP"]
         return "\n".join(command_lines)
 
     @staticmethod
     def _generate_c_if_cmd(cmd: Command):
         command_lines = [
-            f"\n//{cmd}",
+            f"\n// {cmd}",
             "@SP",
             "AM=M-1",
             "D=M",
             f"@{cmd.arg_1}",
-            "D;JNE"
+            "D;JNE",
+        ]
+        return "\n".join(command_lines)
+
+    @staticmethod
+    def _generate_c_function_cmd(cmd: Command):
+        set_local_vars = ""
+        push_0 = "@SP\nA=M\nM=0\n@SP\nM=M+1\n"
+        if cmd.arg_2:
+            set_local_vars = cmd.arg_2 * push_0
+        command_lines = [
+            f"\n// {cmd}",
+            f"({cmd.arg_1})",
+            set_local_vars,
+        ]
+        return "\n".join(command_lines)
+
+    def _generate_c_call_cmd(self, cmd: Command):
+        """
+        PUSH returnAddress
+        PUSH LCL
+        PUSH ARG
+        PUSH THIS
+        PUSH THAT
+        ARG = SP - 5 - nArgs
+        LCL = SP
+        goto functionName
+        (returnAddress)
+        :param cmd:
+        :return:
+        """
+        func_return_label = self._generate_func_return_label()
+        command_lines = [
+            f"\n// {cmd}",
+            # PUSH returnAddress
+            f"@{func_return_label}",
+            "D=A",
+            "@SP",
+            "A=M",
+            "M=D",
+            "@SP",
+            "M=M+1",
+            # PUSH LCL
+            "@LCL",
+            "D=M",
+            "@SP",
+            "A=M",
+            "M=D",
+            "@SP",
+            "M=M+1",
+            # PUSH ARG
+            "@ARG",
+            "D=M",
+            "@SP",
+            "A=M",
+            "M=D",
+            "@SP",
+            "M=M+1",
+            # PUSH THIS
+            "@THIS",
+            "D=M",
+            "@SP",
+            "A=M",
+            "M=D",
+            "@SP",
+            "M=M+1",
+            # PUSH THAT
+            "@THAT",
+            "D=M",
+            "@SP",
+            "A=M",
+            "M=D",
+            "@SP",
+            "M=M+1",
+            # ARG = SP - 5 - nArgs
+            "@5",
+            "D=A",
+            "@R14",
+            "M=D",
+            f"@{cmd.arg_2}",
+            "D=A",
+            "@R14",
+            "M=M+D",
+            "@SP",
+            "D=M",
+            "@R14",
+            "MD=D-M",
+            "@ARG",
+            "M=D",
+            # LCL = SP
+            "@SP",
+            "D=M",
+            "@LCL",
+            "M=D",
+            # goto
+            f"@{cmd.arg_1}",
+            "0;JMP",
+            f"({func_return_label})",
+        ]
+        return "\n".join(command_lines)
+
+    def _generate_func_return_label(self):
+        template = "{file_name}$ret.{count}"
+
+        if not self._current_return_labels.get(self.file_name):
+            self._current_return_labels[self.file_name] = 1
+            return template.format(file_name=self.file_name, count=1)
+        self._current_return_labels[self.file_name] += 1
+        return template.format(
+            file_name=self.file_name, count=self._current_return_labels[self.file_name]
+        )
+
+    @staticmethod
+    def _generate_c_return_cmd(cmd: Command):
+        """
+        endFrame = LCL
+        retAddr = *(endFrame - 5)
+        *ARG = POP()
+
+        :param cmd:
+        :return:
+        """
+        command_lines = [
+            f"\n// {cmd}",
+            # endFrame = LCL
+            "@LCL",
+            "D=M",
+            "@endFrame",
+            "M=D",
+            # retAddr = *(endFrame - 5)
+            "@5",
+            "D=A",
+            "@endFrame",
+            "A=M-D",
+            "D=M",
+            "@retAddr",
+            "M=D",
+            # *ARG = POP()
+            "@SP",
+            "AM=M-1",
+            "D=M",
+            "@ARG",
+            "A=M",
+            "M=D",
+            # SP = ARG + 1
+            "@ARG",
+            "D=M",
+            "@SP",
+            "M=D+1",
+            # THAT = *(endFrame - 1)
+            "@endFrame",
+            "A=M-1",
+            "D=M",
+            "@THAT",
+            "M=D",
+            # THIS = *(endFrame - 2)
+            "@endFrame",
+            "A=M-1",
+            "A=A-1",
+            "D=M",
+            "@THIS",
+            "M=D",
+            # ARG = *(endFrame - 3)
+            "@endFrame",
+            "A=M-1",
+            "A=A-1",
+            "A=A-1",
+            "D=M",
+            "@ARG",
+            "M=D",
+            # LCL = *(endFrame - 4)
+            "@endFrame",
+            "A=M-1",
+            "A=A-1",
+            "A=A-1",
+            "A=A-1",
+            "D=M",
+            "@LCL",
+            "M=D",
+            # goto retAddr
+            f"@retAddr",
+            "A=M",
+            "0;JMP",
         ]
         return "\n".join(command_lines)
 

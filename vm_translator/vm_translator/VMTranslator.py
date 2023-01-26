@@ -6,21 +6,40 @@ from vm_translator.parser import Parser
 
 
 class Compiler:
-    def __init__(self, vm_file_path: Path, asm_output_file_path=None):
-        self.vm_file_path = vm_file_path
-
+    def __init__(self, vm_path: Path, asm_output_file_path: Path = None):
+        self.vm_path = vm_path
+        self.is_dir = self.vm_path.is_dir()
         if not asm_output_file_path:
-            self.asm_file_path = Path(str(vm_file_path).replace(".vm", ".asm"))
+            self.asm_file_path = self.get_asm_file_name()
         else:
             self.asm_file_path = asm_output_file_path
 
-        self.parser = Parser(self.vm_file_path)
-        self.writer = CodeWriter(self.asm_file_path)
-
     def compile_and_write_asm(self):
-        for cmd in self.parser:
-            self.writer.write_cmd(cmd)
-        self.writer.close_file()
+        if not self.is_dir:
+            self._compile_and_write_single_vm_file()
+            return
+        self._compile_and_write_dir()
+
+    def _compile_and_write_single_vm_file(self):
+        writer = CodeWriter(self.asm_file_path)
+        parser = Parser(self.vm_path)
+        for cmd in parser:
+            writer.write_cmd(cmd)
+        writer.close_file()
+
+    def _compile_and_write_dir(self):
+        writer = CodeWriter(self.asm_file_path, True)
+        for vm_file in self.vm_path.glob("**/*.vm"):
+            parser = Parser(vm_file)
+            for cmd in parser:
+                writer.file_name = vm_file.name
+                writer.write_cmd(cmd)
+        writer.close_file()
+
+    def get_asm_file_name(self):
+        if self.is_dir:
+            return self.vm_path / f"{self.vm_path.name}.asm"
+        return Path(str(self.vm_path).replace("vm", "asm"))
 
 
 if __name__ == "__main__":
