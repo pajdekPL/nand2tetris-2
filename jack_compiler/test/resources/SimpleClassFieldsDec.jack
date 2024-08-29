@@ -1,0 +1,19 @@
+class SudokuBoard {
+    field Array allFields, checkerArray;
+    field int singleBlockRows, singleBlockColumns, totalRowsNum;
+        /** Constructs a sudoku board. */
+    constructor SudokuBoard new() {
+      var int someVar;
+      var Array someArray;
+      let totalRowsNum = 3;
+      let totatlColumnsNum = 3;
+      let board_size = 67;
+      // let totalFields = totalRowsNum*totatlColumnsNum;
+      // checkerArray is used to verify if a digit is not repeated in a single block
+      let checkerArray = Array.new(totalFields);
+      let allFields = Array.new(totalFields);
+      // init checkArray with 9 zeros ;)
+      do initChecker();
+      return this;
+   }
+}
